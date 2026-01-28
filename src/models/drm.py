@@ -2,7 +2,7 @@ import torch
 
 from transformers.modeling_outputs import CausalLMOutput
 
-from .common import BaseModel, BlockStack, TransformerConfig, init_state_like, detach_state
+from .common import BaseModel, BlockStack, TransformerConfig, init_state_like, detach_state, prepare_kv_cache
 
 
 class DRMModel(BaseModel):
@@ -33,11 +33,9 @@ class DRMModel(BaseModel):
         x = self.embed(input_ids, puzzle_identifiers)
         s0 = init_state_like(x, self.config.state_init, self.config.state_sigma)
 
-        cache_enabled = bool(use_cache and self.config.causal)
-        legacy_past = past_key_values
-        if past_key_values is not None and hasattr(past_key_values, "layers"):
-            legacy_past = [(k, v) for k, v, _ in past_key_values]
-        new_past = [] if cache_enabled else None
+        cache_enabled, legacy_past, new_past = prepare_kv_cache(
+            past_key_values, use_cache=use_cache, causal=self.config.causal,
+        )
 
         s = s0
         tbptt_steps = int(self.config.tbptt_steps)

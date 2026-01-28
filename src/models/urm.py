@@ -1,7 +1,7 @@
 import torch
 from transformers.modeling_outputs import CausalLMOutput
 
-from .common import BaseModel, BlockStack, TransformerConfig, detach_state
+from .common import BaseModel, BlockStack, TransformerConfig, detach_state, prepare_kv_cache
 
 
 class URMModel(BaseModel):
@@ -25,11 +25,9 @@ class URMModel(BaseModel):
         **kwargs,
     ) -> CausalLMOutput:
         x = self.embed(input_ids, puzzle_identifiers)
-        cache_enabled = bool(use_cache and self.config.causal)
-        legacy_past = past_key_values
-        if past_key_values is not None and hasattr(past_key_values, "layers"):
-            legacy_past = [(k, v) for k, v, _ in past_key_values]
-        new_past = [] if cache_enabled else None
+        cache_enabled, legacy_past, new_past = prepare_kv_cache(
+            past_key_values, use_cache=use_cache, causal=self.config.causal,
+        )
 
         h = x
         loops = max(1, int(self.config.loops))

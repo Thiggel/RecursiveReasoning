@@ -38,3 +38,12 @@ def detach_state(state):
     if isinstance(state, dict):
         return {k: detach_state(v) for k, v in state.items()}
     return state
+
+
+def prepare_kv_cache(past_key_values, use_cache: bool, causal: bool):
+    cache_enabled = bool(use_cache and causal)
+    legacy_past = past_key_values
+    if past_key_values is not None and hasattr(past_key_values, "layers"):
+        legacy_past = [(k, v) for k, v, _ in past_key_values]
+    new_past = [] if cache_enabled else None
+    return cache_enabled, legacy_past, new_past
