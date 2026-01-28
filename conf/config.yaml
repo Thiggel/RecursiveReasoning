@@ -1,0 +1,28 @@
+defaults:
+  - vocab: arc1
+  - model: encoder
+  - task: encoder
+
+seed: 0
+
+train:
+  output_dir: "./out"
+  per_device_train_batch_size: 32
+  per_device_eval_batch_size: 8
+  learning_rate: 3e-4
+  weight_decay: 0.1
+  num_train_epochs: 10
+  gradient_accumulation_steps: 1
+  fp16: true
+  dataloader_num_workers: 0
+  logging_strategy: "steps"
+  logging_steps: 50
+  save_strategy: "steps"
+  save_steps: 500
+  save_total_limit: null
+  evaluation_strategy: "steps"
+  eval_steps: 500
+  report_to:
+    - "wandb"
+  warmup_steps: 1000
+  lr_scheduler_type: "constant_with_warmup"

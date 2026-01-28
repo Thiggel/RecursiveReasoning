@@ -1,0 +1,8 @@
+torch
+transformers
+hydra-core
+omegaconf
+datasets
+wandb
+pytest
+flash_attn --no-build-isolation

@@ -1,0 +1,11 @@
+defaults:
+  - default
+dataset: maze
+tokens:
+  "#": 4
+  " ": 5
+  "S": 6
+  "G": 7
+  "o": 8
+grid: {H: 30, W: 30}
+path: "flaitenberger/maze_hard_augmented"

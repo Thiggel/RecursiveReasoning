@@ -1,0 +1,5 @@
+defaults:
+  - default
+dataset: arc
+grid: {H: 30, W: 30}
+path: "flaitenberger/arc_agi_1_augmented"

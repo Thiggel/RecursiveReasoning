@@ -1,0 +1,19 @@
+name: drm
+
+d_model: 256
+n_layers: 3
+n_heads: 8
+d_ff: 1024
+dropout: 0.1
+rope_theta: 10000.0
+
+causal: true
+recurrence: "state"
+loops: 8
+
+use_puzzle_emb: true
+num_puzzle_ids: -1
+
+state:
+  init: "noise"
+  sigma: 0.02

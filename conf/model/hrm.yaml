@@ -1,0 +1,24 @@
+name: hrm
+
+d_model: 512
+n_layers: 4
+n_heads: 8
+d_ff: 2048
+dropout: 0.1
+rope_theta: 10000.0
+
+causal: false
+recurrence: "hrm"
+loops: 8
+tbptt_steps: 1
+
+use_puzzle_emb: true
+num_puzzle_ids: -1
+
+use_convswiglu: false
+
+hrm:
+  fast_loops: 2
+  slow_loops: 2
+  fast_layers: 4
+  slow_layers: 4

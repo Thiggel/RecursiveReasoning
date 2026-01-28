@@ -1,0 +1,5 @@
+defaults:
+  - default
+dataset: sudoku
+grid: {H: 9, W: 9}
+path: "flaitenberger/sudoku_extreme_augmented"

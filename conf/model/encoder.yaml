@@ -1,0 +1,18 @@
+name: urm
+
+d_model: 256
+n_layers: 1
+n_heads: 8
+d_ff: 1024
+dropout: 0.1
+rope_theta: 10000.0
+
+causal: false
+recurrence: "none"
+loops: 1
+tbptt_steps: 1
+
+use_puzzle_emb: true
+num_puzzle_ids: -1
+
+use_convswiglu: false
