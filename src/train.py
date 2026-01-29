@@ -7,7 +7,7 @@ from transformers import Trainer, TrainingArguments
 
 from src.data import PadCollator
 from src.eval import ExactAccuracyCallback
-from src.models import TransformerConfig, get_model_class
+from src.models import get_model_class
 from src.tokenizers import ExampleTokenizer
 
 
@@ -62,9 +62,8 @@ def _build_model(cfg, vocab_size: int, special_ids: dict[str, int], num_puzzle_i
         "eos_token_id": special_ids["eos"],
         "num_puzzle_ids": num_puzzle_ids,
     })
-    model_cfg = TransformerConfig(**merged_cfg)
-
     model_cls = get_model_class(cfg.model.name)
+    model_cfg = model_cls.config_class(**merged_cfg)
     return model_cls(model_cfg)
 
 
@@ -81,9 +80,14 @@ def main(cfg):
     model = _build_model(cfg, vocab_size, special_ids, num_puzzle_ids)
 
     eval_dataset = ds_tok["test"] if "test" in ds_tok else None
+    max_eval_samples = int(cfg.train.max_eval_samples) if "max_eval_samples" in cfg.train else None
+    if eval_dataset is not None and max_eval_samples is not None and max_eval_samples > 0:
+        max_eval_samples = min(max_eval_samples, len(eval_dataset))
+        eval_dataset = eval_dataset.select(range(max_eval_samples))
     train_args = OmegaConf.to_container(cfg.train, resolve=True)
+    train_args.pop("max_eval_samples", None)
     if eval_dataset is None:
-        train_args["evaluation_strategy"] = "no"
+        train_args["eval_strategy"] = None
     args = TrainingArguments(**train_args)
 
     collator = PadCollator(pad_id=special_ids["pad"])
@@ -95,7 +99,7 @@ def main(cfg):
         eval_dataset=eval_dataset,
         data_collator=collator,
     )
-    trainer.add_callback(ExactAccuracyCallback(cfg.task.name, special_ids["pad"]))
+    trainer.add_callback(ExactAccuracyCallback(cfg.task.name, special_ids["pad"], trainer=trainer))
 
     trainer.train()
     trainer.save_model(cfg.train.output_dir)

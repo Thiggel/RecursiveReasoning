@@ -1,8 +1,7 @@
 torch
-transformers
+transformers[torch]
 hydra-core
 omegaconf
 datasets
 wandb
 pytest
-flash_attn --no-build-isolation

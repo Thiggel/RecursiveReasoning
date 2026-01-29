@@ -9,11 +9,13 @@ rope_theta: 10000.0
 
 causal: true
 recurrence: "state"
-loops: 8
+slow_steps: 1
+fast_steps: 1
+act_steps: 8
 
 use_puzzle_emb: true
 num_puzzle_ids: -1
 
-state:
-  init: "noise"
-  sigma: 0.02
+state_init: "noise"
+state_sigma: 0.02
+drm_inject: "concat"

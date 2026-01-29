@@ -1,0 +1,15 @@
+#!/bin/bash -l
+#SBATCH --job-name=hrm_sudoku
+#SBATCH --output=job_logs/%x_%j.log
+#SBATCH --partition=a100
+#SBATCH --gres=gpu:a100:1 -C a100_80
+#SBATCH --time=12:00:00
+#SBATCH --nodes=1
+
+cd $HOME/recursive_models
+source $HOME/recursive_models/scripts/activate.sh
+set -euo pipefail
+
+source scripts/activate.sh
+
+python -m src.train vocab=sudoku model=hrm

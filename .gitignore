@@ -215,3 +215,5 @@ job_logs
 checkpoints
 *.sif
 models--*
+out
+wandb

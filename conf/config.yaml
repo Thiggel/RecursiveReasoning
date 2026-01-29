@@ -6,22 +6,24 @@ defaults:
 seed: 0
 
 train:
-  output_dir: "./out"
-  per_device_train_batch_size: 32
+  output_dir: ${oc.env:WORK}/recursive_models/out
+  per_device_train_batch_size: 768
   per_device_eval_batch_size: 8
-  learning_rate: 3e-4
+  learning_rate: 1e-4
   weight_decay: 0.1
-  num_train_epochs: 10
+  max_grad_norm: 1.0
+  num_train_epochs: 50
   gradient_accumulation_steps: 1
   fp16: true
   dataloader_num_workers: 0
   logging_strategy: "steps"
   logging_steps: 50
-  save_strategy: "steps"
-  save_steps: 500
+  save_strategy: "epoch"
+  save_steps: 1
   save_total_limit: null
-  evaluation_strategy: "steps"
-  eval_steps: 500
+  eval_strategy: "epoch"
+  eval_steps: 1
+  max_eval_samples: 3000
   report_to:
     - "wandb"
   warmup_steps: 1000

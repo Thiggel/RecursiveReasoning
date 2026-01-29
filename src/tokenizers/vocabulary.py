@@ -40,6 +40,13 @@ class TokenVocabulary:
         if "special_ids" not in cfg_vocab:
             return cls.DEFAULT_SPECIAL_IDS
         sp = cfg_vocab.special_ids
+        if isinstance(sp, dict):
+            return {
+                "pad": int(sp["pad"]),
+                "bos": int(sp["bos"]),
+                "sep": int(sp["sep"]),
+                "eos": int(sp["eos"]),
+            }
         return {"pad": int(sp.pad), "bos": int(sp.bos), "sep": int(sp.sep), "eos": int(sp.eos)}
 
     @classmethod

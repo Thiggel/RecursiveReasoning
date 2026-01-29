@@ -1,7 +1,7 @@
 import torch
 
 from src.models.common.convswiglu import ConvSwiGLU
-from src.models.common.config import TransformerConfig
+from src.models.common.config import BaseTransformerConfig
 from src.models.common.postnorm_block import PostNormBlock
 
 
@@ -13,7 +13,7 @@ def test_convswiglu_shape():
 
 
 def test_postnorm_block_uses_convswiglu_when_enabled():
-    cfg = TransformerConfig(
+    cfg = BaseTransformerConfig(
         d_model=8,
         n_heads=2,
         d_ff=16,

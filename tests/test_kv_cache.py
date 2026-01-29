@@ -2,7 +2,7 @@ import types
 
 import torch
 
-from src.models.common.config import TransformerConfig
+from src.models.common.config import URMConfig, DRMConfig
 from src.models.drm import DRMModel
 from src.models.urm import URMModel
 
@@ -32,7 +32,7 @@ def _extract_legacy_cache(cache):
 
 
 def test_urm_cache_slice_order():
-    cfg = TransformerConfig(
+    cfg = URMConfig(
         d_model=8,
         n_heads=2,
         d_ff=16,
@@ -40,11 +40,11 @@ def test_urm_cache_slice_order():
         vocab_size=11,
         use_puzzle_emb=False,
         causal=True,
-        loops=3,
+        act_steps=3,
     )
     model = URMModel(cfg)
     input_ids = torch.randint(0, cfg.vocab_size, (1, 4))
-    past_key_values = _make_cache_items(cfg.n_layers * cfg.loops)
+    past_key_values = _make_cache_items(cfg.n_layers * cfg.act_steps)
 
     records = []
 
@@ -58,7 +58,7 @@ def test_urm_cache_slice_order():
     model.shared.forward = types.MethodType(fake_forward, model.shared)
     model(input_ids, use_cache=True, past_key_values=past_key_values)
 
-    assert len(records) == cfg.loops
+    assert len(records) == cfg.act_steps
     for step, slice_kv in enumerate(records):
         expected = _expected_indices(step, cfg.n_layers)
         assert slice_kv is not None
@@ -69,7 +69,7 @@ def test_urm_cache_slice_order():
 
 
 def test_drm_cache_slice_order():
-    cfg = TransformerConfig(
+    cfg = DRMConfig(
         d_model=8,
         n_heads=2,
         d_ff=16,
@@ -77,12 +77,12 @@ def test_drm_cache_slice_order():
         vocab_size=11,
         use_puzzle_emb=False,
         causal=True,
-        loops=3,
+        act_steps=3,
         state_init="zero",
     )
     model = DRMModel(cfg)
     input_ids = torch.randint(0, cfg.vocab_size, (1, 4))
-    past_key_values = _make_cache_items(cfg.n_layers * cfg.loops)
+    past_key_values = _make_cache_items(cfg.n_layers * cfg.act_steps)
 
     records = []
 
@@ -96,7 +96,7 @@ def test_drm_cache_slice_order():
     model.shared.forward = types.MethodType(fake_forward, model.shared)
     model(input_ids, use_cache=True, past_key_values=past_key_values)
 
-    assert len(records) == cfg.loops
+    assert len(records) == cfg.act_steps
     for step, slice_kv in enumerate(records):
         expected = _expected_indices(step, cfg.n_layers)
         assert slice_kv is not None
@@ -107,7 +107,7 @@ def test_drm_cache_slice_order():
 
 
 def test_urm_cache_length():
-    cfg = TransformerConfig(
+    cfg = URMConfig(
         d_model=8,
         n_heads=2,
         d_ff=16,
@@ -115,10 +115,10 @@ def test_urm_cache_length():
         vocab_size=11,
         use_puzzle_emb=False,
         causal=True,
-        loops=3,
+        act_steps=3,
     )
     model = URMModel(cfg)
     input_ids = torch.randint(0, cfg.vocab_size, (1, 4))
     outputs = model(input_ids, use_cache=True)
     legacy = _extract_legacy_cache(outputs.past_key_values)
-    assert len(legacy) == cfg.loops * cfg.n_layers
+    assert len(legacy) == cfg.act_steps * cfg.n_layers

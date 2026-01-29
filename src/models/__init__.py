@@ -1,4 +1,4 @@
-from .common import TransformerConfig
+from .common import BaseTransformerConfig, TRMConfig, HRMConfig, URMConfig, DRMConfig
 from .drm import DRMModel
 from .hrm import HRMModel
 from .trm import TRMModel
@@ -17,3 +17,13 @@ def get_model_class(name: str):
     if name not in _MODEL_REGISTRY:
         raise ValueError(f"Unknown model name: {name}")
     return _MODEL_REGISTRY[name]
+
+
+__all__ = [
+    "BaseTransformerConfig",
+    "TRMConfig",
+    "HRMConfig",
+    "URMConfig",
+    "DRMConfig",
+    "get_model_class",
+]

@@ -3,12 +3,12 @@ from __future__ import annotations
 import torch
 import torch.nn as nn
 
-from .config import TransformerConfig
+from .config import BaseTransformerConfig
 from .postnorm_block import PostNormBlock
 
 
 class BlockStack(nn.Module):
-    def __init__(self, cfg: TransformerConfig, num_layers: int):
+    def __init__(self, cfg: BaseTransformerConfig, num_layers: int):
         super().__init__()
         self.num_layers = int(num_layers)
         self.layers = nn.ModuleList([PostNormBlock(cfg) for _ in range(self.num_layers)])

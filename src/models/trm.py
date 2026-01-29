@@ -2,28 +2,32 @@ import torch
 
 from transformers.modeling_outputs import CausalLMOutput
 
-from .common import BaseModel, BlockStack, TransformerConfig, detach_state
+from .common import BaseModel, BlockStack, TRMConfig, RecurrenceMixin, RecurrenceState
 
 
-class TRMModel(BaseModel):
+class TRMModel(BaseModel, RecurrenceMixin):
     """
-    Two coupled per-token states (y, z) with shared block updates.
+    Two coupled per-token states (slow, fast) with shared block updates.
     """
-    def __init__(self, config: TransformerConfig):
+    config_class = TRMConfig
+
+    def __init__(self, config: TRMConfig):
         super().__init__(config)
         self.shared = BlockStack(config, num_layers=config.n_layers)
-        self.y_proj = torch.nn.Linear(3 * config.d_model, config.d_model, bias=False)
-        self.z_proj = torch.nn.Linear(3 * config.d_model, config.d_model, bias=False)
         self.post_init()
 
-    def _step(self, x: torch.Tensor, state: tuple[torch.Tensor, torch.Tensor], attention_mask: torch.Tensor | None):
-        y, z = state
-        cat = torch.cat([x, y, z], dim=-1)
-        y_in = self.y_proj(cat)
-        z_in = self.z_proj(cat)
-        y_next, _ = self.shared(y_in, attention_mask)
-        z_next, _ = self.shared(z_in, attention_mask)
-        return (y_next, z_next)
+    def _fast_step(self, state: RecurrenceState, x: torch.Tensor, attention_mask: torch.Tensor | None) -> RecurrenceState:
+        slow_state = state.slow
+        fast_state = state.fast if state.fast is not None else state.slow
+        inject = slow_state + x if self.config.trm_l_inject else slow_state
+        fast_state, _ = self.shared(fast_state + inject, attention_mask)
+        return RecurrenceState(slow=slow_state, fast=fast_state)
+
+    def _slow_step(self, state: RecurrenceState, attention_mask: torch.Tensor | None) -> RecurrenceState:
+        slow_state = state.slow
+        fast_state = state.fast if state.fast is not None else state.slow
+        slow_state, _ = self.shared(slow_state + fast_state, attention_mask)
+        return RecurrenceState(slow=slow_state, fast=fast_state)
 
     def forward(
         self,
@@ -35,14 +39,18 @@ class TRMModel(BaseModel):
     ) -> CausalLMOutput:
         x = self.embed(input_ids, puzzle_identifiers)
 
-        y0 = x.clone() if self.config.trm_init_y_from_x else torch.zeros_like(x)
-        z0 = torch.zeros_like(x)
+        slow_state = x.clone() if self.config.trm_init_y_from_x else torch.zeros_like(x)
+        fast_state = torch.zeros_like(x)
+        state = RecurrenceState(slow=slow_state, fast=fast_state)
 
-        y, z = y0, z0
-        tbptt_steps = int(self.config.tbptt_steps)
-        for step in range(int(self.config.loops)):
-            y, z = self._step(x, (y, z), attention_mask)
-            if self.training and tbptt_steps > 0 and (step + 1) % tbptt_steps == 0:
-                y, z = detach_state((y, z))
-        h = y
-        return self._finalize(h, labels, x.new_zeros(()))
+        state = self.run_act_slow_fast(
+            state,
+            act_steps=self.config.act_steps,
+            slow_cycles=self.config.slow_steps,
+            fast_cycles=self.config.fast_steps,
+            fast_step_fn=lambda s: self._fast_step(s, x, attention_mask),
+            slow_step_fn=lambda s: self._slow_step(s, attention_mask),
+            training=self.training,
+            tbptt_steps=self.config.tbptt_steps,
+        )
+        return self._finalize(state.slow, labels, x.new_zeros(()))

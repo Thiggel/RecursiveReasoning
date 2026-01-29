@@ -16,6 +16,15 @@ def exact_accuracy_from_logits(labels: torch.Tensor, logits: torch.Tensor) -> to
     return per_sample.mean()
 
 
+def token_accuracy_from_logits(labels: torch.Tensor, logits: torch.Tensor) -> torch.Tensor:
+    preds = logits.argmax(dim=-1)
+    mask = labels != IGNORE_LABEL_ID
+    if mask.sum() == 0:
+        return torch.tensor(0.0, device=logits.device)
+    correct = (preds == labels) & mask
+    return correct.float().sum() / mask.sum()
+
+
 class ExactAccuracyEvaluator:
     def __init__(self, trainer: Trainer, pad_token_id: int):
         self._trainer = trainer
@@ -25,20 +34,24 @@ class ExactAccuracyEvaluator:
         model = self._trainer.model
         model.eval()
         exact_sum = 0.0
+        token_sum = 0.0
         batches = 0
         for batch in dataloader:
             batch = self._trainer._prepare_inputs(batch)
             with torch.no_grad():
                 outputs = model(**batch)
             exact_sum += float(exact_accuracy_from_logits(batch["labels"], outputs.logits))
+            token_sum += float(token_accuracy_from_logits(batch["labels"], outputs.logits))
             batches += 1
-        return exact_sum / max(1, batches)
+        return exact_sum / max(1, batches), token_sum / max(1, batches)
 
     def autoregressive(self, dataloader) -> float:
         model = self._trainer.model
         model.eval()
         total = 0
         exact_matches = 0
+        token_correct = 0
+        token_total = 0
 
         for batch in dataloader:
             batch = self._trainer._prepare_inputs(batch)
@@ -75,5 +88,9 @@ class ExactAccuracyEvaluator:
                     pred = generated[i, start:end]
                     if torch.equal(pred, tgt):
                         exact_matches += 1
+                    token_correct += int((pred == tgt).sum().item())
+                    token_total += int(tgt.numel())
 
-        return exact_matches / max(1, total)
+        exact = exact_matches / max(1, total)
+        token_acc = token_correct / max(1, token_total)
+        return exact, token_acc

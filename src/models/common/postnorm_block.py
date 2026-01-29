@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 
 from .attention import Attention
-from .config import TransformerConfig
+from .config import BaseTransformerConfig
 from .convswiglu import ConvSwiGLU
 
 
@@ -14,7 +14,7 @@ class PostNormBlock(nn.Module):
       x = LN(x + Attn(x))
       x = LN(x + MLP(x))
     """
-    def __init__(self, cfg: TransformerConfig):
+    def __init__(self, cfg: BaseTransformerConfig):
         super().__init__()
         self.attn = Attention(cfg)
         self.ln1 = nn.LayerNorm(cfg.d_model)

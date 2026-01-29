@@ -2,23 +2,25 @@ import torch
 
 from transformers.modeling_outputs import CausalLMOutput
 
-from .common import BaseModel, BlockStack, TransformerConfig, init_state_like, detach_state, prepare_kv_cache
+from .common import BaseModel, BlockStack, DRMConfig, RecurrenceMixin, RecurrenceState, init_state_like, prepare_kv_cache
 
 
-class DRMModel(BaseModel):
+class DRMModel(BaseModel, RecurrenceMixin):
     """
     Decoder with noise-initialized recurrent state.
     """
-    def __init__(self, config: TransformerConfig):
+    config_class = DRMConfig
+
+    def __init__(self, config: DRMConfig):
         super().__init__(config)
         self.shared = BlockStack(config, num_layers=config.n_layers)
         self.state_proj = torch.nn.Linear(2 * config.d_model, config.d_model, bias=False)
         self.post_init()
 
-    def _step(self, x: torch.Tensor, s_prev: torch.Tensor, attention_mask: torch.Tensor | None) -> torch.Tensor:
-        h_in = self.state_proj(torch.cat([x, s_prev], dim=-1))
-        h, _ = self.shared(h_in, attention_mask)
-        return h
+    def _inject(self, x: torch.Tensor, hidden: torch.Tensor) -> torch.Tensor:
+        if self.config.drm_inject == "add":
+            return hidden + x
+        return self.state_proj(torch.cat([x, hidden], dim=-1))
 
     def forward(
         self,
@@ -37,19 +39,21 @@ class DRMModel(BaseModel):
             past_key_values, use_cache=use_cache, causal=self.config.causal,
         )
 
-        s = s0
-        tbptt_steps = int(self.config.tbptt_steps)
-        for step in range(int(self.config.loops)):
-            if cache_enabled:
-                start = step * self.shared.num_layers
-                end = start + self.shared.num_layers
-                past_slice = legacy_past[start:end] if legacy_past is not None else None
-                h_in = self.state_proj(torch.cat([x, s], dim=-1))
-                s, present = self.shared(h_in, attention_mask, past_key_values=past_slice, use_cache=True)
-                new_past.extend(present)
-            else:
-                s = self._step(x, s, attention_mask)
-            if self.training and tbptt_steps > 0 and (step + 1) % tbptt_steps == 0:
-                s = detach_state(s)
-        h = s
+        state = RecurrenceState(slow=s0, fast=None)
+        state = self.run_single_state(
+            state=state,
+            input_tensor=x,
+            attention_mask=attention_mask,
+            shared_stack=self.shared,
+            cache_enabled=cache_enabled,
+            legacy_past=legacy_past,
+            new_past=new_past,
+            inject_fn=self._inject,
+            slow_steps=self.config.slow_steps,
+            fast_steps=self.config.fast_steps,
+            act_steps=self.config.act_steps,
+            training=self.training,
+            tbptt_steps=self.config.tbptt_steps,
+        )
+        h = state.slow
         return self._finalize(h, labels, x.new_zeros(()), past_key_values=new_past)

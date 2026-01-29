@@ -8,15 +8,15 @@ from transformers.cache_utils import Cache, DynamicCache
 from transformers.generation import GenerationMixin
 from transformers.modeling_outputs import CausalLMOutputWithPast
 
-from .config import TransformerConfig
+from .config import BaseTransformerConfig
 from .embeddings import TokenAndPuzzleEmbedding
 from .utils import compute_loss
 
 
 class BaseModel(PreTrainedModel, GenerationMixin):
-    config_class = TransformerConfig
+    config_class = BaseTransformerConfig
 
-    def __init__(self, config: TransformerConfig):
+    def __init__(self, config: BaseTransformerConfig):
         super().__init__(config)
         self.embed = TokenAndPuzzleEmbedding(config)
         self.lm_head = nn.Linear(config.d_model, config.vocab_size, bias=False)

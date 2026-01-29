@@ -1,15 +1,16 @@
 import torch
 from transformers.modeling_outputs import CausalLMOutput
 
-from .common import BaseModel, BlockStack, TransformerConfig, detach_state, prepare_kv_cache
+from .common import BaseModel, BlockStack, URMConfig, RecurrenceMixin, RecurrenceState, prepare_kv_cache
 
 
-class URMModel(BaseModel):
+class URMModel(BaseModel, RecurrenceMixin):
     """
-    Shared block with optional ACT over per-token halting.
-    If ACT is disabled, runs a fixed number of loops.
+    Shared block with a single recurrent state.
     """
-    def __init__(self, config: TransformerConfig):
+    config_class = URMConfig
+
+    def __init__(self, config: URMConfig):
         super().__init__(config)
         self.shared = BlockStack(config, num_layers=config.n_layers)
         self.post_init()
@@ -29,18 +30,20 @@ class URMModel(BaseModel):
             past_key_values, use_cache=use_cache, causal=self.config.causal,
         )
 
-        h = x
-        loops = max(1, int(self.config.loops))
-        tbptt_steps = int(self.config.tbptt_steps)
-        for step in range(loops):
-            if cache_enabled:
-                start = step * self.shared.num_layers
-                end = start + self.shared.num_layers
-                past_slice = legacy_past[start:end] if legacy_past is not None else None
-                h, present = self.shared(h, attention_mask, past_key_values=past_slice, use_cache=True)
-                new_past.extend(present)
-            else:
-                h, _ = self.shared(h, attention_mask)
-            if self.training and tbptt_steps > 0 and (step + 1) % tbptt_steps == 0:
-                h = detach_state(h)
-        return self._finalize(h, labels, x.new_zeros(()), past_key_values=new_past)
+        state = RecurrenceState(slow=x, fast=None)
+        state = self.run_single_state(
+            state=state,
+            input_tensor=x,
+            attention_mask=attention_mask,
+            shared_stack=self.shared,
+            cache_enabled=cache_enabled,
+            legacy_past=legacy_past,
+            new_past=new_past,
+            inject_fn=lambda inp, hidden: hidden + inp,
+            slow_steps=self.config.slow_steps,
+            fast_steps=self.config.fast_steps,
+            act_steps=self.config.act_steps,
+            training=self.training,
+            tbptt_steps=self.config.tbptt_steps,
+        )
+        return self._finalize(state.slow, labels, x.new_zeros(()), past_key_values=new_past)

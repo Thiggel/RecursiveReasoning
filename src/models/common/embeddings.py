@@ -3,11 +3,11 @@ from __future__ import annotations
 import torch
 import torch.nn as nn
 
-from .config import TransformerConfig
+from .config import BaseTransformerConfig
 
 
 class TokenAndPuzzleEmbedding(nn.Module):
-    def __init__(self, cfg: TransformerConfig):
+    def __init__(self, cfg: BaseTransformerConfig):
         super().__init__()
         self.tok = nn.Embedding(cfg.vocab_size, cfg.d_model, padding_idx=cfg.pad_token_id)
         self.puzzle = nn.Embedding(cfg.num_puzzle_ids, cfg.d_model) if cfg.use_puzzle_emb else None

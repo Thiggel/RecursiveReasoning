@@ -1,1 +1,1 @@
-from .models import TransformerConfig, get_model_class
+from .models import BaseTransformerConfig, TRMConfig, HRMConfig, URMConfig, DRMConfig, get_model_class

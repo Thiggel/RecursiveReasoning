@@ -9,8 +9,10 @@ rope_theta: 10000.0
 
 causal: true
 recurrence: "none"
-loops: 1
 tbptt_steps: 1
+slow_steps: 1
+fast_steps: 1
+act_steps: 1
 
 use_puzzle_emb: true
 num_puzzle_ids: -1

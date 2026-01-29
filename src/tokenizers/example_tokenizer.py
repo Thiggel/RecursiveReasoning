@@ -19,6 +19,8 @@ class ExampleTokenizer:
     @property
     def special_ids(self) -> dict[str, int]:
         sp = self._vocab.special_ids
+        if isinstance(sp, dict):
+            return {"pad": sp["pad"], "bos": sp["bos"], "sep": sp["sep"], "eos": sp["eos"]}
         return {"pad": sp.pad, "bos": sp.bos, "sep": sp.sep, "eos": sp.eos}
 
     @classmethod
