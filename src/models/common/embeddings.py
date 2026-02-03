@@ -21,5 +21,5 @@ class TokenAndPuzzleEmbedding(nn.Module):
             pos = 1 if self._causal else 0
             if h.shape[1] <= pos:
                 raise ValueError("sequence too short for puzzle embedding position")
-            h[:, pos:pos + 1, :] = h[:, pos:pos + 1, :] + self.puzzle(puzzle_identifiers)[:, None, :]
+            h[:, pos:pos + 1, :] = self.puzzle(puzzle_identifiers)[:, None, :]
         return h

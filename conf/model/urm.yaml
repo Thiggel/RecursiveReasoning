@@ -20,3 +20,4 @@ num_puzzle_ids: -1
 use_convswiglu: true
 convswiglu_kernel_size: 3
 convswiglu_groups: null
+loss_type: "stablemax"

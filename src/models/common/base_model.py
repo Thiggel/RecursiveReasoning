@@ -32,6 +32,8 @@ class BaseModel(PreTrainedModel, GenerationMixin):
         past_key_values: list | None = None,
     ) -> CausalLMOutputWithPast:
         logits = self.lm_head(h)
+        if getattr(self.config, "loss_type", "cross_entropy") == "stablemax":
+            logits.use_stablemax = True
         loss = compute_loss(logits, labels, aux_loss)
         cache = None
         if past_key_values is not None:

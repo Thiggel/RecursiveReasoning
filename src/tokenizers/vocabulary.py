@@ -11,6 +11,7 @@ class TokenVocabulary:
         self._token_to_id = token_to_id
         self._token_to_id_str = {str(k): v for k, v in token_to_id.items()}
         self._special_ids = special_ids
+        self._id_to_token = {v: k for k, v in token_to_id.items()}
         self._vocab_size = self._compute_vocab_size()
 
     @property
@@ -28,6 +29,20 @@ class TokenVocabulary:
         if value_str in self._token_to_id_str:
             return self._token_to_id_str[value_str]
         raise KeyError(f"Unknown token: {value}")
+
+    def decode_id(self, token_id: int) -> object:
+        if token_id == self._special_ids["pad"]:
+            return "<pad>"
+        if token_id == self._special_ids["bos"]:
+            return "<bos>"
+        if token_id == self._special_ids["sep"]:
+            return "<sep>"
+        if token_id == self._special_ids["eos"]:
+            return "<eos>"
+        return self._id_to_token.get(token_id, f"<unk:{token_id}>")
+
+    def decode_ids(self, token_ids: Iterable[int]) -> list[object]:
+        return [self.decode_id(int(t)) for t in token_ids]
 
     @classmethod
     def from_config(cls, cfg_vocab) -> "TokenVocabulary":
@@ -51,12 +66,13 @@ class TokenVocabulary:
 
     @classmethod
     def _tokens_from_config(cls, cfg_vocab, special_ids: dict[str, int]) -> dict[object, int]:
+        offset = cls._first_non_special_id(special_ids)
         if "tokens" in cfg_vocab:
             raw = cfg_vocab.tokens
             if isinstance(raw, dict):
-                return {k: int(v) for k, v in raw.items()}
-            return cls._assign_sequential(raw, cls._first_non_special_id(special_ids))
-        return cls._assign_sequential(cls.DEFAULT_NUMERIC_TOKENS, cls._first_non_special_id(special_ids))
+                return {k: int(v) + offset for k, v in raw.items()}
+            return cls._assign_sequential(raw, offset)
+        return cls._assign_sequential(cls.DEFAULT_NUMERIC_TOKENS, offset)
 
     @staticmethod
     def _assign_sequential(tokens: Iterable[object], start_id: int) -> dict[object, int]:

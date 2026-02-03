@@ -4,6 +4,21 @@ import torch
 import torch.nn as nn
 
 
+class SwiGLU(nn.Module):
+    def __init__(self, d_model: int, d_ff: int, dropout: float):
+        super().__init__()
+        self.in_proj = nn.Linear(d_model, 2 * d_ff)
+        self.out_proj = nn.Linear(d_ff, d_model)
+        self.act = nn.SiLU()
+        self.drop = nn.Dropout(dropout)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        gate, value = self.in_proj(x).chunk(2, dim=-1)
+        x = self.act(gate) * value
+        x = self.out_proj(x)
+        return self.drop(x)
+
+
 class ConvSwiGLU(nn.Module):
     def __init__(
         self,

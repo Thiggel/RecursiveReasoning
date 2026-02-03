@@ -21,3 +21,4 @@ use_convswiglu: false
 state_init: "noise"
 state_sigma: 0.02
 drm_inject: "concat"
+loss_type: "stablemax"

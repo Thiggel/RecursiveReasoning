@@ -24,6 +24,8 @@ train:
   eval_strategy: "epoch"
   eval_steps: 1
   max_eval_samples: 3000
+  compile_model: true
+  debug_samples: 3
   report_to:
     - "wandb"
   warmup_steps: 1000

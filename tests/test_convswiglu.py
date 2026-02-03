@@ -1,6 +1,6 @@
 import torch
 
-from src.models.common.convswiglu import ConvSwiGLU
+from src.models.common.convswiglu import ConvSwiGLU, SwiGLU
 from src.models.common.config import BaseTransformerConfig
 from src.models.common.postnorm_block import PostNormBlock
 
@@ -25,3 +25,10 @@ def test_postnorm_block_uses_convswiglu_when_enabled():
     )
     block = PostNormBlock(cfg)
     assert isinstance(block.mlp, ConvSwiGLU)
+
+
+def test_swiglu_shape():
+    module = SwiGLU(d_model=8, d_ff=16, dropout=0.0)
+    x = torch.randn(2, 5, 8)
+    y = module(x)
+    assert y.shape == x.shape

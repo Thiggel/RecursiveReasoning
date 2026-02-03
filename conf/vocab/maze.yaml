@@ -9,3 +9,4 @@ tokens:
   "o": 8
 grid: {H: 30, W: 30}
 path: "flaitenberger/maze_hard_augmented"
+use_puzzle_emb: false

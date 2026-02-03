@@ -26,6 +26,7 @@ class BaseTransformerConfig(PretrainedConfig):
         use_convswiglu: bool = False,
         convswiglu_kernel_size: int = 3,
         convswiglu_groups: int | None = None,
+        loss_type: str = "cross_entropy",
         slow_steps: int = 1,
         fast_steps: int = 1,
         act_steps: int = 1,
@@ -47,6 +48,7 @@ class BaseTransformerConfig(PretrainedConfig):
         self.use_convswiglu = use_convswiglu
         self.convswiglu_kernel_size = convswiglu_kernel_size
         self.convswiglu_groups = convswiglu_groups
+        self.loss_type = loss_type
         self.slow_steps = slow_steps
         self.fast_steps = fast_steps
         self.act_steps = act_steps

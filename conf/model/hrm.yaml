@@ -18,6 +18,7 @@ use_puzzle_emb: true
 num_puzzle_ids: -1
 
 use_convswiglu: false
+loss_type: "stablemax"
 
 hrm_fast_layers: 4
 hrm_slow_layers: 4

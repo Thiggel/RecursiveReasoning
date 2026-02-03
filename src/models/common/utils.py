@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import torch
 import torch.nn.functional as F
+
+from .stablemax import stablemax_cross_entropy
 from contextlib import nullcontext
 
 IGNORE_LABEL_ID = -100
@@ -22,11 +24,19 @@ def compute_loss(
 ) -> torch.Tensor | None:
     if labels is None:
         return None
-    return F.cross_entropy(
-        logits.view(-1, logits.size(-1)),
-        labels.view(-1),
-        ignore_index=IGNORE_LABEL_ID,
-    ) + aux_loss
+    if getattr(logits, "use_stablemax", False):
+        loss = stablemax_cross_entropy(
+            logits.view(-1, logits.size(-1)),
+            labels.view(-1),
+            ignore_index=IGNORE_LABEL_ID,
+        ).mean()
+    else:
+        loss = F.cross_entropy(
+            logits.view(-1, logits.size(-1)),
+            labels.view(-1),
+            ignore_index=IGNORE_LABEL_ID,
+        )
+    return loss + aux_loss
 
 
 def detach_state(state):

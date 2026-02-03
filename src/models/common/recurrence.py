@@ -37,20 +37,31 @@ class RecurrenceMixin:
         act_steps = int(act_steps)
         if act_steps <= 0:
             return state
-        if not training or tbptt_steps <= 0:
-            start_grad = 0
-        else:
-            start_grad = max(act_steps - int(tbptt_steps), 0)
+        detach_period = None
+        if training:
+            detach_period = int(tbptt_steps) if int(tbptt_steps) > 0 else 1
         for act_step in range(act_steps):
-            force_no_grad = training and tbptt_steps > 0 and act_step < start_grad
+            # Within an ACT step: run slow_cycles; only the final slow cycle keeps grad.
             for slow_step in range(int(slow_cycles)):
-                no_grad = force_no_grad or (slow_step < int(slow_cycles) - 1)
+                no_grad = slow_step < int(slow_cycles) - 1
                 ctx = torch.no_grad() if no_grad else nullcontext()
                 with ctx:
                     for _ in range(int(fast_cycles)):
                         state = fast_step_fn(state)
                     if slow_step_fn is not None:
                         state = slow_step_fn(state)
+            # Detach carry according to TBPTT window (matching TinyRecursiveModels semantics)
+            if detach_period is not None and (act_step + 1) % detach_period == 0:
+                state = RecurrenceState(
+                    slow=state.slow.detach(),
+                    fast=state.fast.detach() if state.fast is not None else None,
+                )
+            elif not training:
+                # Always detach in eval to avoid graph accumulation
+                state = RecurrenceState(
+                    slow=state.slow.detach(),
+                    fast=state.fast.detach() if state.fast is not None else None,
+                )
         return state
 
     @staticmethod
