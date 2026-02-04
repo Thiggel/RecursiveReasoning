@@ -6,9 +6,32 @@ from omegaconf import OmegaConf
 from transformers import Trainer, TrainingArguments
 
 from src.data import PadCollator
-from src.eval import ExactAccuracyCallback
+from src.eval.exact_accuracy import exact_accuracy_from_logits, token_accuracy_from_logits
 from src.models import get_model_class
 from src.tokenizers import ExampleTokenizer
+
+
+class AccuracyTrainer(Trainer):
+    """
+    Computes per-batch exact and token accuracy during both training and evaluation,
+    logging them with `train_*/eval_*` prefixes. This avoids the extra full-dataset
+    passes that the previous callback performed.
+    """
+
+    def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
+        outputs = model(**inputs)
+        loss = outputs.loss if hasattr(outputs, "loss") else outputs[0]
+
+        logits = outputs.logits if hasattr(outputs, "logits") else None
+        labels = inputs.get("labels")
+        if logits is not None and labels is not None:
+            exact = exact_accuracy_from_logits(labels, logits)
+            token = token_accuracy_from_logits(labels, logits)
+            prefix = "train" if model.training else "eval"
+            # log() respects the Trainer's logging callbacks; per-batch metrics are emitted here.
+            self.log({f"{prefix}_exact_accuracy": float(exact), f"{prefix}_token_accuracy": float(token)})
+
+        return (loss, outputs) if return_outputs else loss
 
 
 def _merge_config(model_cfg, vocab_cfg) -> dict[str, object]:
@@ -123,20 +146,23 @@ def main(cfg):
     train_args.pop("max_eval_samples", None)
     train_args.pop("debug_samples", None)
     train_args.pop("compile_model", None)
+    # torch.compile wraps the model in OptimizedModule whose forward signature is (*args, **kwargs),
+    # which breaks Trainer's unused column pruning. Keep all columns when compiling unless explicitly set.
+    if bool(getattr(cfg.train, "compile_model", False)):
+        train_args.setdefault("remove_unused_columns", False)
     if eval_dataset is None:
         train_args["eval_strategy"] = None
     args = TrainingArguments(**train_args)
 
     collator = PadCollator(pad_id=special_ids["pad"])
 
-    trainer = Trainer(
+    trainer = AccuracyTrainer(
         model=model,
         args=args,
         train_dataset=ds_tok["train"],
         eval_dataset=eval_dataset,
         data_collator=collator,
     )
-    trainer.add_callback(ExactAccuracyCallback(cfg.task.name, special_ids["pad"], trainer=trainer))
 
     trainer.train()
     trainer.save_model(cfg.train.output_dir)
