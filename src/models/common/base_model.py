@@ -24,17 +24,39 @@ class BaseModel(PreTrainedModel, GenerationMixin):
     def get_input_embeddings(self):
         return self.embed.tok
 
+    def _compute_logits(self, h: torch.Tensor) -> torch.Tensor:
+        logits = self.lm_head(h)
+        if getattr(self.config, "loss_type", "cross_entropy") == "stablemax":
+            logits.use_stablemax = True
+        return logits
+
+    def _append_step_loss(
+        self,
+        *,
+        step_losses: list[torch.Tensor],
+        hidden: torch.Tensor,
+        labels: torch.Tensor | None,
+        aux_loss: torch.Tensor,
+    ) -> None:
+        if labels is None:
+            return
+        step_logits = self._compute_logits(hidden)
+        step_loss = compute_loss(step_logits, labels, aux_loss)
+        if step_loss is not None:
+            step_losses.append(step_loss)
+
     def _finalize(
         self,
         h: torch.Tensor,
         labels: torch.Tensor | None,
         aux_loss: torch.Tensor,
         past_key_values: list | None = None,
+        step_losses: list[torch.Tensor] | None = None,
     ) -> CausalLMOutputWithPast:
-        logits = self.lm_head(h)
-        if getattr(self.config, "loss_type", "cross_entropy") == "stablemax":
-            logits.use_stablemax = True
+        logits = self._compute_logits(h)
         loss = compute_loss(logits, labels, aux_loss)
+        if labels is not None and step_losses:
+            loss = torch.stack(step_losses).mean()
         cache = None
         if past_key_values is not None:
             if isinstance(past_key_values, Cache):

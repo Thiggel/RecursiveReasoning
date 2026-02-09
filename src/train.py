@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import hydra
-from datasets import load_dataset
+import os
+
+from datasets import load_dataset, load_from_disk
 from omegaconf import OmegaConf
 from transformers import Trainer, TrainingArguments
 
@@ -51,8 +53,8 @@ def _build_tokenizer(cfg) -> tuple[ExampleTokenizer, dict[str, int], int, int]:
     tokenizer = ExampleTokenizer.from_config(cfg.vocab)
     special_ids = tokenizer.special_ids
     vocab_size = tokenizer.vocab_size
-
-    if not cfg.model.use_puzzle_emb:
+    include_puzzle = bool(getattr(cfg.vocab, "use_puzzle_emb", cfg.model.use_puzzle_emb))
+    if not include_puzzle:
         return tokenizer, special_ids, vocab_size, int(cfg.model.num_puzzle_ids)
 
     if cfg.model.num_puzzle_ids != -1:
@@ -61,8 +63,16 @@ def _build_tokenizer(cfg) -> tuple[ExampleTokenizer, dict[str, int], int, int]:
     return tokenizer, special_ids, vocab_size, -1
 
 
+def _load_dataset(path: str):
+    if os.path.isdir(path):
+        dataset_dict = os.path.join(path, "dataset_dict.json")
+        if os.path.exists(dataset_dict):
+            return load_from_disk(path)
+    return load_dataset(path)
+
+
 def _prepare_dataset(cfg, tokenizer: ExampleTokenizer) -> tuple[dict, int]:
-    ds = load_dataset(cfg.vocab.path)
+    ds = _load_dataset(cfg.vocab.path)
 
     include_puzzle = bool(getattr(cfg.vocab, "use_puzzle_emb", cfg.model.use_puzzle_emb))
     mapper = tokenizer.make_mapper(cfg.task.name, include_puzzle=include_puzzle)
@@ -125,7 +135,7 @@ def main(cfg):
     print(OmegaConf.to_yaml(cfg))
 
     tokenizer, special_ids, vocab_size, num_puzzle_ids = _build_tokenizer(cfg)
-    ds = load_dataset(cfg.vocab.path)
+    ds = _load_dataset(cfg.vocab.path)
     _debug_samples(cfg, tokenizer, ds)
     ds_tok, inferred_puzzle_ids = _prepare_dataset(cfg, tokenizer)
     if cfg.model.use_puzzle_emb and cfg.model.num_puzzle_ids == -1:

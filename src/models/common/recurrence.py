@@ -31,6 +31,7 @@ class RecurrenceMixin:
         fast_cycles: int,
         fast_step_fn,
         slow_step_fn=None,
+        act_step_end_fn=None,
         training: bool,
         tbptt_steps: int,
     ) -> RecurrenceState:
@@ -50,6 +51,8 @@ class RecurrenceMixin:
                         state = fast_step_fn(state)
                     if slow_step_fn is not None:
                         state = slow_step_fn(state)
+            if act_step_end_fn is not None:
+                act_step_end_fn(state, act_step)
             # Detach carry according to TBPTT window (matching TinyRecursiveModels semantics)
             if detach_period is not None and (act_step + 1) % detach_period == 0:
                 state = RecurrenceState(
@@ -78,6 +81,7 @@ class RecurrenceMixin:
         slow_steps: int,
         fast_steps: int,
         act_steps: int,
+        act_step_end_fn=None,
         training: bool,
         tbptt_steps: int,
     ) -> RecurrenceState:
@@ -104,6 +108,7 @@ class RecurrenceMixin:
             fast_cycles=fast_steps,
             fast_step_fn=_fast_step,
             slow_step_fn=None,
+            act_step_end_fn=act_step_end_fn,
             training=training,
             tbptt_steps=tbptt_steps,
         )

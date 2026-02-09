@@ -114,3 +114,136 @@ def test_hrm_tbptt_runs_with_windowed_grad():
     input_ids = _make_input()
     model(input_ids)
     assert True
+
+
+def test_trm_supervises_each_grad_enabled_act_step():
+    cfg = TRMConfig(
+        d_model=8,
+        n_heads=2,
+        d_ff=16,
+        n_layers=1,
+        vocab_size=11,
+        use_puzzle_emb=False,
+        tbptt_steps=2,
+        slow_steps=1,
+        fast_steps=1,
+        act_steps=3,
+    )
+    model = TRMModel(cfg)
+    model.train()
+    input_ids = _make_input(batch=2, seq=5, vocab=11)
+    labels = _make_input(batch=2, seq=5, vocab=11)
+
+    call_count = {"n": 0}
+    orig_forward = model.lm_head.forward
+
+    def _counted_forward(*args, **kwargs):
+        call_count["n"] += 1
+        return orig_forward(*args, **kwargs)
+
+    model.lm_head.forward = _counted_forward  # type: ignore[assignment]
+    outputs = model(input_ids, labels=labels)
+
+    assert outputs.loss is not None
+    # One LM head call per ACT step + one final logits call.
+    assert call_count["n"] == cfg.act_steps + 1
+
+
+def test_urm_supervises_each_act_step():
+    cfg = URMConfig(
+        d_model=8,
+        n_heads=2,
+        d_ff=16,
+        n_layers=1,
+        vocab_size=11,
+        use_puzzle_emb=False,
+        tbptt_steps=2,
+        slow_steps=1,
+        fast_steps=1,
+        act_steps=4,
+    )
+    model = URMModel(cfg)
+    model.train()
+    input_ids = _make_input(batch=2, seq=5, vocab=11)
+    labels = _make_input(batch=2, seq=5, vocab=11)
+
+    call_count = {"n": 0}
+    orig_forward = model.lm_head.forward
+
+    def _counted_forward(*args, **kwargs):
+        call_count["n"] += 1
+        return orig_forward(*args, **kwargs)
+
+    model.lm_head.forward = _counted_forward  # type: ignore[assignment]
+    outputs = model(input_ids, labels=labels)
+
+    assert outputs.loss is not None
+    assert call_count["n"] == cfg.act_steps + 1
+
+
+def test_hrm_supervises_each_act_step():
+    cfg = HRMConfig(
+        d_model=8,
+        n_heads=2,
+        d_ff=16,
+        n_layers=1,
+        vocab_size=11,
+        use_puzzle_emb=False,
+        hrm_fast_layers=1,
+        hrm_slow_layers=1,
+        tbptt_steps=2,
+        slow_steps=1,
+        fast_steps=1,
+        act_steps=3,
+    )
+    model = HRMModel(cfg)
+    model.train()
+    input_ids = _make_input(batch=2, seq=5, vocab=11)
+    labels = _make_input(batch=2, seq=5, vocab=11)
+
+    call_count = {"n": 0}
+    orig_forward = model.lm_head.forward
+
+    def _counted_forward(*args, **kwargs):
+        call_count["n"] += 1
+        return orig_forward(*args, **kwargs)
+
+    model.lm_head.forward = _counted_forward  # type: ignore[assignment]
+    outputs = model(input_ids, labels=labels)
+
+    assert outputs.loss is not None
+    assert call_count["n"] == cfg.act_steps + 1
+
+
+def test_drm_supervises_each_act_step():
+    cfg = DRMConfig(
+        d_model=8,
+        n_heads=2,
+        d_ff=16,
+        n_layers=1,
+        vocab_size=11,
+        use_puzzle_emb=False,
+        tbptt_steps=2,
+        causal=False,
+        state_init="zero",
+        slow_steps=1,
+        fast_steps=1,
+        act_steps=5,
+    )
+    model = DRMModel(cfg)
+    model.train()
+    input_ids = _make_input(batch=2, seq=5, vocab=11)
+    labels = _make_input(batch=2, seq=5, vocab=11)
+
+    call_count = {"n": 0}
+    orig_forward = model.lm_head.forward
+
+    def _counted_forward(*args, **kwargs):
+        call_count["n"] += 1
+        return orig_forward(*args, **kwargs)
+
+    model.lm_head.forward = _counted_forward  # type: ignore[assignment]
+    outputs = model(input_ids, labels=labels)
+
+    assert outputs.loss is not None
+    assert call_count["n"] == cfg.act_steps + 1

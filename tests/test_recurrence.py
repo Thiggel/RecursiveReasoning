@@ -50,7 +50,6 @@ def test_trm_fast_slow_injection():
         vocab_size=11,
         use_puzzle_emb=False,
         trm_l_inject=True,
-        trm_init_y_from_x=True,
         slow_steps=1,
         fast_steps=1,
         act_steps=1,

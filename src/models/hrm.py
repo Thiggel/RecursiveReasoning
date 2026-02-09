@@ -39,6 +39,17 @@ class HRMModel(BaseModel, RecurrenceMixin):
         **kwargs,
     ) -> CausalLMOutput:
         x = self.embed(input_ids, puzzle_identifiers)
+        aux_loss = x.new_zeros(())
+        step_losses: list[torch.Tensor] = []
+
+        def _act_step_loss(step_state: RecurrenceState, _step_idx: int) -> None:
+            self._append_step_loss(
+                step_losses=step_losses,
+                hidden=step_state.slow,
+                labels=labels,
+                aux_loss=aux_loss,
+            )
+
         state = RecurrenceState(slow=x, fast=x)
         state = self.run_act_slow_fast(
             state,
@@ -47,7 +58,8 @@ class HRMModel(BaseModel, RecurrenceMixin):
             fast_cycles=self.config.fast_steps,
             fast_step_fn=lambda s: self._fast_step(s, x, attention_mask),
             slow_step_fn=lambda s: self._slow_step(s, attention_mask),
+            act_step_end_fn=_act_step_loss if self.training and labels is not None else None,
             training=self.training,
             tbptt_steps=self.config.tbptt_steps,
         )
-        return self._finalize(state.slow, labels, x.new_zeros(()))
+        return self._finalize(state.slow, labels, aux_loss, step_losses=step_losses)

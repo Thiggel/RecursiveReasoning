@@ -60,12 +60,10 @@ class TRMConfig(BaseTransformerConfig):
 
     def __init__(
         self,
-        trm_init_y_from_x: bool = True,
         trm_l_inject: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self.trm_init_y_from_x = trm_init_y_from_x
         self.trm_l_inject = trm_l_inject
 
 
